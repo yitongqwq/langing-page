@@ -1,58 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Example Domain</title>
+    <link rel="icon" href="data:,">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-        
         body {
-            background: linear-gradient(to bottom, #1288c7, #6eb8e0);
-            color: #333333;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            background: #eee;
+            width: 60vw;
+            margin: 15vh auto;
+            font-family: system-ui, sans-serif;
+        }
+        h1 {
+            font-size: 1.5em;
+        }
+        div {
+            opacity: 0.8;
+        }
+        a:link,
+        a:visited {
+            color: #348;
         }
         
         .card {
-            background-color: #b3e3ff;
-            border-radius: 10px;
-            padding: 30px;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
             cursor: pointer;
             user-select: none;
-        }
-        
-        h1 {
-            margin-bottom: 20px;
-            color: #333333;
-        }
-        
-        p {
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-        
-        a {
-            color: #275c57;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        a:hover {
-            text-decoration: underline;
         }
         
         .message-container {
@@ -66,6 +38,7 @@
             border-radius: 5px;
             border-left: 4px solid #f44336;
             text-align: center;
+            opacity: 1;
         }
         
         .system-error {
@@ -74,6 +47,7 @@
             border-radius: 5px;
             border-left: 4px solid #ff9800;
             text-align: center;
+            opacity: 1;
         }
         
         .loading {
@@ -84,18 +58,7 @@
             text-align: center;
             color: #275c57;
             font-weight: bold;
-        }
-        
-        footer {
-            text-align: center;
-            color: #ffffff;
-            margin-top: 20px;
-            padding: 15px;
-            font-size: 14px;
-        }
-        
-        footer a {
-            color: #d1fffa;
+            opacity: 1;
         }
     </style>
 </head>
@@ -108,101 +71,102 @@
         </div>
         <div id="messageContainer" class="message-container"></div>
     </div>
-<script>
-    let clickCount = 0;
-    let clickTimer = null;
-    let messageTimer = null;
-    
-    function ping(url) {
-        return new Promise((resolve) => {
-            const t = performance.now();
-            fetch(url, {
-                method: "HEAD",
-                cache: "no-store",
-                mode: "no-cors"
-            })
-            .then(() => {
-                const delay = Math.round(performance.now() - t);
-                resolve(delay);
-            })
-            .catch(() => {
-                const delay = Math.round(performance.now() - t);
-                resolve(delay > 10000 ? null : delay);
-            });
 
-            setTimeout(() => resolve(null), 10000);
-        });
-    }
-    
-    function showMessage(html, isError = false) {
-        const container = document.getElementById('messageContainer');
-        container.innerHTML = html;
+    <script>
+        let clickCount = 0;
+        let clickTimer = null;
+        let messageTimer = null;
         
-        if (isError) {
-            if (messageTimer) {
-                clearTimeout(messageTimer);
+        function ping(url) {
+            return new Promise((resolve) => {
+                const t = performance.now();
+                fetch(url, {
+                    method: "HEAD",
+                    cache: "no-store",
+                    mode: "no-cors"
+                })
+                .then(() => {
+                    const delay = Math.round(performance.now() - t);
+                    resolve(delay);
+                })
+                .catch(() => {
+                    const delay = Math.round(performance.now() - t);
+                    resolve(delay > 10000 ? null : delay);
+                });
+
+                setTimeout(() => resolve(null), 10000);
+            });
+        }
+        
+        function showMessage(html, isError = false) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = html;
+            
+            if (isError) {
+                if (messageTimer) {
+                    clearTimeout(messageTimer);
+                }
+                messageTimer = setTimeout(() => {
+                    container.innerHTML = '';
+                    messageTimer = null;
+                }, 1500);
             }
-            messageTimer = setTimeout(() => {
-                container.innerHTML = '';
-                messageTimer = null;
-            }, 1500);
-        }
-    }
-    
-    document.getElementById('clickCard').addEventListener('click', async function(e) {
-        if (e.target.tagName === 'A') {
-            return;
         }
         
-        clickCount++;
-        
-        if (clickTimer) {
-            clearTimeout(clickTimer);
-        }
-        
-        if (clickCount >= 10) {
-            clickCount = 0;
+        document.getElementById('clickCard').addEventListener('click', async function(e) {
+            if (e.target.tagName === 'A') {
+                return;
+            }
+            
+            clickCount++;
+            
             if (clickTimer) {
                 clearTimeout(clickTimer);
-                clickTimer = null;
             }
             
-            showMessage('<div class="loading"><p>请稍候...</p></div>');
-            
-            try {
-                const data = await fetch('./data.json').then(r => r.json());
-                
-                if (!data.url || !Array.isArray(data.url)) {
-                    showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
-                    return;
-                }
-                
-                const promises = data.url.map(async (url) => ({
-                    url: url,
-                    delay: await ping(url)
-                }));
-                
-                const results = await Promise.all(promises);
-                const available = results.filter(r => r.delay !== null);
-                
-                if (available.length === 0) {
-                    showMessage('<div class="error-message"><p>您的网络状况不佳，请切换网络环境或稍后再试，您也可以联系站长反馈此事。</p></div>', true);
-                    return;
-                }
-                
-                available.sort((a, b) => a.delay - b.delay);
-                window.location.href = available[0].url;
-                
-            } catch {
-                showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
-            }
-        } else {
-            clickTimer = setTimeout(() => {
+            if (clickCount >= 10) {
                 clickCount = 0;
-                clickTimer = null;
-            }, 1500);
-        }
-    });
-</script>
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                }
+                
+                showMessage('<div class="loading"><p>请稍候...</p></div>');
+                
+                try {
+                    const data = await fetch('./data.json').then(r => r.json());
+                    
+                    if (!data.url || !Array.isArray(data.url)) {
+                        showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
+                        return;
+                    }
+                    
+                    const promises = data.url.map(async (url) => ({
+                        url: url,
+                        delay: await ping(url)
+                    }));
+                    
+                    const results = await Promise.all(promises);
+                    const available = results.filter(r => r.delay !== null);
+                    
+                    if (available.length === 0) {
+                        showMessage('<div class="error-message"><p>您的网络状况不佳，请切换网络环境或稍后再试，您也可以联系站长反馈此事。</p></div>', true);
+                        return;
+                    }
+                    
+                    available.sort((a, b) => a.delay - b.delay);
+                    window.location.href = available[0].url;
+                    
+                } catch {
+                    showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
+                }
+            } else {
+                clickTimer = setTimeout(() => {
+                    clickCount = 0;
+                    clickTimer = null;
+                }, 1500);
+            }
+        });
+    </script>
 </body>
 </html>
