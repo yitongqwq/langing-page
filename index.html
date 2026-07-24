@@ -31,6 +31,8 @@
             width: 100%;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             margin-bottom: 20px;
+            cursor: pointer;
+            user-select: none;
         }
         
         h1 {
@@ -51,31 +53,6 @@
         
         a:hover {
             text-decoration: underline;
-        }
-        
-        .button-container {
-            text-align: center;
-            margin-top: 30px;
-        }
-        
-        button {
-            background-color: #275c57;
-            color: #d1fffa;
-            border: none;
-            padding: 15px 30px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            width: 100%;
-            max-width: 200px;
-        }
-        
-        button:hover {
-            background-color: #1e4a45;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
         .message-container {
@@ -116,30 +93,29 @@
             padding: 15px;
             font-size: 14px;
         }
+        
+        footer a {
+            color: #d1fffa;
+        }
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="card" id="clickCard">
         <div>
             <h1>Example Domain</h1>
             <p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p>
-            <p><a href="https://iana.org/domains/example">Learn more</a></p>
+            <p><a href="https://iana.org/domains/example" target="_blank" rel="noopener noreferrer">Learn more</a></p>
         </div>
-        
-        <div class="button-container">
-            <button id="actionButton">Continue</button>
-            <div id="messageContainer" class="message-container"></div>
-        </div>
+        <div id="messageContainer" class="message-container"></div>
     </div>
-
-    <footer>
-        <p>©2025 made by naki-im. GPLv3 Licensed at <a href="https://github.com/naki-im/landing-page" target="_blank" rel="noopener noreferrer">GitHub</a></p>
-    </footer>
 <script>
+    let clickCount = 0;
+    let clickTimer = null;
+    let messageTimer = null;
+    
     function ping(url) {
         return new Promise((resolve) => {
             const t = performance.now();
-            // 使用no-cors模式避免CORS问题
             fetch(url, {
                 method: "HEAD",
                 cache: "no-store",
@@ -158,39 +134,73 @@
         });
     }
     
-    document.getElementById('actionButton').addEventListener('click', async function() {
+    function showMessage(html, isError = false) {
         const container = document.getElementById('messageContainer');
-        container.innerHTML = '<div class="loading"><p>请稍候...</p></div>';
+        container.innerHTML = html;
         
-        try {
-            // 获取data文件
-            const data = await fetch('./data.json').then(r => r.json());
-            
-            if (!data.url || !Array.isArray(data.url)) {
-                container.innerHTML = '<div class="system-error"><p>系统出错，请稍后再试</p></div>';
-                return;
+        if (isError) {
+            if (messageTimer) {
+                clearTimeout(messageTimer);
+            }
+            messageTimer = setTimeout(() => {
+                container.innerHTML = '';
+                messageTimer = null;
+            }, 1500);
+        }
+    }
+    
+    document.getElementById('clickCard').addEventListener('click', async function(e) {
+        if (e.target.tagName === 'A') {
+            return;
+        }
+        
+        clickCount++;
+        
+        if (clickTimer) {
+            clearTimeout(clickTimer);
+        }
+        
+        if (clickCount >= 10) {
+            clickCount = 0;
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
             }
             
-            // 测速所有URL
-            const promises = data.url.map(async (url) => ({
-                url: url,
-                delay: await ping(url)
-            }));
+            showMessage('<div class="loading"><p>请稍候...</p></div>');
             
-            const results = await Promise.all(promises);
-            const available = results.filter(r => r.delay !== null);
-            
-            if (available.length === 0) {
-                container.innerHTML = '<div class="error-message"><p>您的网络状况不佳，请切换网络环境或稍后再试，您也可以联系站长反馈此事。</p></div>';
-                return;
+            try {
+                const data = await fetch('./data.json').then(r => r.json());
+                
+                if (!data.url || !Array.isArray(data.url)) {
+                    showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
+                    return;
+                }
+                
+                const promises = data.url.map(async (url) => ({
+                    url: url,
+                    delay: await ping(url)
+                }));
+                
+                const results = await Promise.all(promises);
+                const available = results.filter(r => r.delay !== null);
+                
+                if (available.length === 0) {
+                    showMessage('<div class="error-message"><p>您的网络状况不佳，请切换网络环境或稍后再试，您也可以联系站长反馈此事。</p></div>', true);
+                    return;
+                }
+                
+                available.sort((a, b) => a.delay - b.delay);
+                window.location.href = available[0].url;
+                
+            } catch {
+                showMessage('<div class="system-error"><p>系统出错，请稍后再试</p></div>', true);
             }
-            
-            // 按延迟排序并跳转最快
-            available.sort((a, b) => a.delay - b.delay);
-            window.location.href = available[0].url;
-            
-        } catch {
-            container.innerHTML = '<div class="system-error"><p>系统出错，请稍后再试</p></div>';
+        } else {
+            clickTimer = setTimeout(() => {
+                clickCount = 0;
+                clickTimer = null;
+            }, 1500);
         }
     });
 </script>
